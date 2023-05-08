@@ -7,6 +7,7 @@ import mysql.connector
 import geopy.distance
 
 
+
 # Buat koneksi ke database
 mydb = mysql.connector.connect(
     host="localhost",
@@ -23,6 +24,111 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+# ========= Funsi CRUD ========= #
+
+async def login_data(update: Update, context: CallbackContext) -> None:
+    # Cek apakah format perintah /login valid
+    try:
+        username, password = update.message.text.split()[1:]
+    except ValueError:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Format perintah salah. Contoh: /login username password")
+        return
+
+    # Verifikasi apakah username dan password valid
+    is_admin = False
+    sql = "SELECT * FROM admin WHERE username = %s AND password = %s"
+    val = (username, password)
+    mycursor.execute(sql, val)
+    result = mycursor.fetchone()
+    if result:
+        is_admin = True
+
+    # Berikan tindakan sesuai dengan status admin
+    if is_admin:
+        context.user_data[update.effective_chat.id] = {'admin': True}
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Anda telah berhasil login sebagai admin.")
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Username atau password salah.")
+
+
+async def read_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Periksa apakah pengguna memiliki akses admin
+    if not context.user_data.get(update.effective_chat.id, {}).get('admin', False):
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Maaf, hanya admin yang dapat mengakses fungsi ini.")
+        return
+
+    # Jika pengguna adalah admin, jalankan kode normal untuk membaca data
+    sql = "SELECT * FROM pengguna"
+    mycursor.execute(sql)
+    result = mycursor.fetchall()
+    message = "Data yang tersimpan di database:\n\n"
+    for row in result:
+        message += f"ID: {row[0]},\nNama: {row[1]},\nWaktu Daftar: {row[2]},\nLatitude: {row[3]},\nLongitude: {row[4]},\nChat ID: {row[5]}\n\n"
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
+
+async def create_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Periksa apakah pengguna memiliki akses admin
+    if not context.user_data.get(update.effective_chat.id, {}).get('admin', False):
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Maaf, hanya admin yang dapat mengakses fungsi ini.")
+        return
+
+    # Jika pengguna adalah admin, jalankan kode normal untuk membuat data
+    data = update.message.text.split()[1:]
+    sql = "INSERT INTO pengguna (nama, waktu_daftar, latitude, longitude, chat_id) VALUES (%s, %s, %s, %s, %s)"
+    val = tuple(data)
+    mycursor.execute(sql, val)
+    mydb.commit()
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Data berhasil ditambahkan!")
+
+async def edit_data(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    # Periksa apakah pengguna memiliki hak akses
+    if not context.user_data.get(chat_id, {}).get('admin', False):
+        await context.bot.send_message(chat_id=chat_id, text="Anda tidak memiliki hak akses.")
+        return
+
+    # Ambil data yang ingin diubah dari pesan pengguna
+    try:
+        id, kolom, nilai_baru = update.message.text.split()[1:]
+    except ValueError:
+        await context.bot.send_message(chat_id=chat_id, text="Format pesan tidak valid.")
+        return
+
+    # Update data sesuai dengan id, kolom, dan nilai baru yang diberikan
+    try:
+        sql = f"UPDATE pengguna SET {kolom} = %s WHERE id = %s"
+        val = (nilai_baru, id)
+        mycursor.execute(sql, val)
+        mydb.commit()
+        await context.bot.send_message(chat_id=chat_id, text="Data berhasil diperbarui!")
+    except Exception as e:
+        await context.bot.send_message(chat_id=chat_id, text=f"Terjadi kesalahan: {e}")
+
+async def delete_data(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    # Periksa apakah pengguna memiliki hak akses
+    if not context.user_data.get(chat_id, {}).get('admin', False):
+        await context.bot.send_message(chat_id=chat_id, text="Anda tidak memiliki hak akses.")
+        return
+    
+    # Ambil id data yang ingin dihapus dari pesan pengguna
+    try:
+        id = update.message.text.split()[1]
+    except IndexError:
+        await context.bot.send_message(chat_id=chat_id, text="Format pesan tidak valid.")
+        return
+
+    # Hapus data dari database sesuai dengan id yang diberikan
+    try:
+        sql = "DELETE FROM pengguna WHERE id = %s"
+        val = (id,)
+        mycursor.execute(sql, val)
+        mydb.commit()
+        await context.bot.send_message(chat_id=chat_id, text="Data berhasil dihapus!")
+    except Exception as e:
+            await context.bot.send_message(chat_id=chat_id, text=f"Terjadi kesalahan: {e}")
+            
+# =============================== #
 
 async def daftar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -131,11 +237,14 @@ async def location(update: Update, context: CallbackContext, alasan = None):
         mycursor.execute(sql, val)
         mydb.commit()
 
+        # kirim pesan status absen ke bot
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima Kasih.\n📖 Aksi: {jenis_absen}\n✅ Nama: {user_name}\n🕖 Jam Absen: {waktu_absen}\n✋ Status: {status}")
-        # kirim pesan ke grup Telegram setelah pengguna berhasil absen
-        group_chat_id = "-925633085"
-        group_message = f"👨 Nama : {user_name}\n🕟 Jam absen: {waktu_absen}\n📖 Aksi : {jenis_absen}"
-        await context.bot.send_message(chat_id=group_chat_id, text=group_message)
+
+        # # kirim pesan ke grup Telegram setelah pengguna berhasil absen
+        # group_chat_id = "-925633085"
+        # group_message = f"👨 Nama : {user_name}\n🕟 Jam absen: {waktu_absen}\n📖 Aksi : {jenis_absen}"
+        # await context.bot.send_message(chat_id=group_chat_id, text=group_message)
+
     except telegram.error.Conflict:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Maaf, terjadi kesalahan saat melakukan absen. Silakan coba lagi nanti.")
 
@@ -152,5 +261,19 @@ if __name__ == '__main__':
     application.add_handler(absen_handler)
     application.add_handler(daftar_handler)
     application.add_handler(location_handler)
+
+    # Command CRUD
+    login_handler = CommandHandler('login',login_data)
+    read_handler = CommandHandler('read', read_data)
+    create_handler = CommandHandler('create', create_data)
+    edit_handler = CommandHandler('edit', edit_data)
+    delete_handler = CommandHandler('delete', delete_data)
+
+    # Handler CRUD
+    application.add_handler(login_handler)
+    application.add_handler(read_handler)
+    application.add_handler(create_handler)
+    application.add_handler(edit_handler)
+    application.add_handler(delete_handler)
 
     application.run_polling()

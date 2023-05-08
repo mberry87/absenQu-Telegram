@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 05 Bulan Mei 2023 pada 11.40
+-- Waktu pembuatan: 08 Bulan Mei 2023 pada 10.12
 -- Versi server: 10.4.24-MariaDB
 -- Versi PHP: 8.1.6
 
@@ -36,14 +36,6 @@ CREATE TABLE `absen` (
   `jam_absen` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
---
--- Dumping data untuk tabel `absen`
---
-
-INSERT INTO `absen` (`id`, `nama`, `jenis_absen`, `status`, `alasan`, `jam_absen`) VALUES
-(17, 'berry', 'Absen Pagi', 'Tepat waktu', NULL, '2023-05-05 15:44:09'),
-(18, 'berry', 'Absen Pagi', 'Tepat waktu', NULL, '2023-05-05 15:47:09');
-
 -- --------------------------------------------------------
 
 --
@@ -55,15 +47,17 @@ CREATE TABLE `pengguna` (
   `nama` varchar(255) NOT NULL,
   `waktu_daftar` datetime NOT NULL,
   `latitude` decimal(10,8) DEFAULT NULL,
-  `longitude` decimal(11,8) DEFAULT NULL
+  `longitude` decimal(11,8) DEFAULT NULL,
+  `chat_id` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data untuk tabel `pengguna`
 --
 
-INSERT INTO `pengguna` (`id`, `nama`, `waktu_daftar`, `latitude`, `longitude`) VALUES
-(8, 'berry', '2023-05-05 15:57:53', '0.93038800', '104.44012300');
+INSERT INTO `pengguna` (`id`, `nama`, `waktu_daftar`, `latitude`, `longitude`, `chat_id`) VALUES
+(11, 'berry', '2023-05-08 12:07:02', '0.93056900', '104.44028100', '1580416806'),
+(12, 'deden', '2023-05-08 14:09:54', '0.93057200', '104.44026800', '6004140786');
 
 --
 -- Indexes for dumped tables
@@ -89,13 +83,13 @@ ALTER TABLE `pengguna`
 -- AUTO_INCREMENT untuk tabel `absen`
 --
 ALTER TABLE `absen`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
 
 --
 -- AUTO_INCREMENT untuk tabel `pengguna`
 --
 ALTER TABLE `pengguna`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
