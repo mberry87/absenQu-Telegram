@@ -248,6 +248,24 @@ async def location(update: Update, context: CallbackContext, alasan = None):
     except telegram.error.Conflict:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Maaf, terjadi kesalahan saat melakukan absen. Silakan coba lagi nanti.")
 
+
+async def sakit (update : Update, context : ContextTypes.DEFAULT_TYPE, alasan=None):
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
+
+    user_name = update.message.from_user.first_name
+    waktu_absen = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    jenis_absen = 'Sakit'
+    status = 'Tidak hadir'
+
+    # Memasukkan data absen ke dalam tabel absen
+    sql = "INSERT INTO absen (nama,jenis_absen, jam_absen, status, alasan) VALUES (%s, %s, %s, %s, %s)"
+    val = (user_name, jenis_absen, waktu_absen, status, alasan)
+    mycursor.execute(sql, val)
+    mydb.commit()
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima Kasih, Lekas sembuh.\nNama : {user_name}\nWaktu absen : {waktu_absen}\nStatus : {status}")
+    
+
 if __name__ == '__main__':
     application = ApplicationBuilder().token(
         '6192400416:AAHgSAkjydqDMh5fkqf_Xfd9j2CfRpV0Uts').build()
@@ -256,11 +274,14 @@ if __name__ == '__main__':
     absen_handler = CommandHandler('absen', absen)
     daftar_handler = CommandHandler('daftar', daftar)
     location_handler = MessageHandler(filters.LOCATION, location)
+    sakit_handler = CommandHandler('sakit', sakit)
 
     application.add_handler(start_handler)
     application.add_handler(absen_handler)
     application.add_handler(daftar_handler)
     application.add_handler(location_handler)
+    application.add_handler(sakit_handler)
+
 
     # Command CRUD
     login_handler = CommandHandler('login',login_data)
