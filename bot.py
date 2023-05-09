@@ -242,7 +242,7 @@ async def location(update: Update, context: CallbackContext, alasan = None):
 
         # # kirim pesan ke grup Telegram setelah pengguna berhasil absen
         # group_chat_id = "-925633085"
-        # group_message = f"👨 Nama : {user_name}\n🕟 Jam absen: {waktu_absen}\n📖 Aksi : {jenis_absen}"
+        # group_message = f"✅ Nama : {user_name}\n🕟 Jam absen: {waktu_absen}\n📖 Aksi : {jenis_absen}"
         # await context.bot.send_message(chat_id=group_chat_id, text=group_message)
 
     except telegram.error.Conflict:
@@ -263,7 +263,20 @@ async def sakit (update : Update, context : ContextTypes.DEFAULT_TYPE, alasan=No
     mycursor.execute(sql, val)
     mydb.commit()
 
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima Kasih, Lekas sembuh.\nNama : {user_name}\nWaktu absen : {waktu_absen}\nStatus : {status}")
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima Kasih, Lekas sembuh.\n📖 Aksi : {jenis_absen}\n✅ Nama : {user_name}\n🕖 Waktu absen : {waktu_absen}\n✋ Status : {status}")
+
+async def izin (update : Update, context : ContextTypes.DEFAULT_TYPE):
+    if len(context.args) == 0:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Mohon maaf, sertakan alasan ! Ketik : /izin {alasan} tanpa kurung")
+        return
+    
+    alasan = " ".join(context.args)
+    user_name = update.message.from_user.first_name
+    waktu_absen = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    jenis_absen = 'Izin'
+    status = 'Tidak hadir'
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima kasih, izin Anda sudah tercatat.\n📖 Aksi : {jenis_absen}\n✅ Nama : {user_name}\n🕖 Waktu absen : {waktu_absen}\n✋ Status : {status}\n📝 Alasan : {alasan}")
     
 
 if __name__ == '__main__':
@@ -275,12 +288,14 @@ if __name__ == '__main__':
     daftar_handler = CommandHandler('daftar', daftar)
     location_handler = MessageHandler(filters.LOCATION, location)
     sakit_handler = CommandHandler('sakit', sakit)
+    izin_handler = CommandHandler('izin', izin)
 
     application.add_handler(start_handler)
     application.add_handler(absen_handler)
     application.add_handler(daftar_handler)
     application.add_handler(location_handler)
     application.add_handler(sakit_handler)
+    application.add_handler(izin_handler)
 
 
     # Command CRUD
