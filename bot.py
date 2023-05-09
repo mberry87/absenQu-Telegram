@@ -276,6 +276,12 @@ async def izin (update : Update, context : ContextTypes.DEFAULT_TYPE):
     jenis_absen = 'Izin'
     status = 'Tidak hadir'
 
+    # Memasukkan data absen ke dalam tabel absen
+    sql = "INSERT INTO absen (nama,jenis_absen, jam_absen, status, alasan) VALUES (%s, %s, %s, %s, %s)"
+    val = (user_name, jenis_absen, waktu_absen, status, alasan)
+    mycursor.execute(sql, val)
+    mydb.commit()
+
     await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima kasih, izin Anda sudah tercatat.\n📖 Aksi : {jenis_absen}\n✅ Nama : {user_name}\n🕖 Waktu absen : {waktu_absen}\n✋ Status : {status}\n📝 Alasan : {alasan}")
     
 
