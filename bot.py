@@ -6,8 +6,6 @@ import telegram
 import mysql.connector
 import geopy.distance
 
-
-
 # Buat koneksi ke database
 mydb = mysql.connector.connect(
     host="localhost",
@@ -15,6 +13,14 @@ mydb = mysql.connector.connect(
     password="",
     database="absenqu"
 )
+
+# Memeriksa apakah koneksi terputus dan mencoba menghubungkan kembali
+if mydb.is_connected() == False:
+    print("KOneksi terputus. Mencoba menghubungi kembali...")
+    mydb.reconnect(attempts=1, delay=0)
+    if mydb.is_connected() == True:
+        print("Koneksi berhasil tersambung kembali.")
+
 
 # Buat cursor untuk mengeksekusi query SQL
 mycursor = mydb.cursor()
@@ -171,7 +177,7 @@ async def location(update: Update, context: CallbackContext, alasan = None):
     location = update.message.location
     latitude = location.latitude
     longitude = location.longitude
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Lokasi anda berada\n👨 Nama : {user_id}\n📌Latitude : {latitude}\n📌 Longitude : {longitude}")
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Lokasi anda berada\n👨 Nama : {user_id}\n📌 Latitude : {latitude}\n📌 Longitude : {longitude}")
     # await context.bot.send_location(chat_id=update.effective_chat.id, latitude=latitude, longitude=longitude)
 
     try:
@@ -205,17 +211,7 @@ async def location(update: Update, context: CallbackContext, alasan = None):
         if distance > 1:
             await context.bot.send_message(chat_id=update.effective_chat.id, text="Anda tidak berada di dalam radius absen.\nSilahkan anda absen kembali !")
             return
-
-        # # Memeriksa apakah pengguna telah melakukan absen pada hari yang sama sebelumnya
-        # sql = "SELECT COUNT(*) FROM absen WHERE nama=%s AND DATE(jam_absen) = CURDATE()"
-        # val = (user_name,)
-        # mycursor.execute(sql, val)
-        # result = mycursor.fetchone()
-
-        # if result[0] > 0:
-        #     await context.bot.send_message(chat_id=update.effective_chat.id, text="Anda sudah melakukan absen pada hari ini.")
-        #     return
-
+        
         if now >= '05:00:00' and now <= '08:00:00':
             jenis_absen = 'Absen Pagi'
             status = 'Tepat waktu'
@@ -227,6 +223,16 @@ async def location(update: Update, context: CallbackContext, alasan = None):
             status = 'Tepat waktu'
         else:
             await context.bot.send_message(chat_id=update.effective_chat.id, text="Maaf, saat ini tidak bisa melakukan absen.")
+            return
+
+        # Memeriksa apakah pengguna telah melakukan absen pada hari yang sama sebelumnya
+        sql = "SELECT COUNT(*) FROM absen WHERE nama=%s AND DATE(jam_absen) = CURDATE() AND jenis_absen=%s"
+        val = (user_name,jenis_absen)
+        mycursor.execute(sql, val)
+        result = mycursor.fetchone()
+
+        if result[0] > 0:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Anda sudah melakukan absen {jenis_absen}")
             return
 
         waktu_absen = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')

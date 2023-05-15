@@ -25,7 +25,7 @@ if (mysqli_num_rows($result) == 1) {
     $_SESSION['username'] = $username;
 
     // Alihkan pengguna ke halaman utama
-    header("Location: dashboard.php");
+    header("Location: home.php");
     exit();
 } else {
     // Data login salah, tampilkan pesan error dan kembali ke halaman login
