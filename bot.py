@@ -5,6 +5,8 @@ import datetime
 import telegram
 import mysql.connector
 import geopy.distance
+import time
+from functools import wraps
 
 # Buat koneksi ke database
 mydb = mysql.connector.connect(
@@ -32,6 +34,32 @@ logging.basicConfig(
 
 # ========= Funsi CRUD ========= #
 
+# Fungsi decorator untuk mengatur waktu logout jika tidak ada aktivitas
+def auto_logout(timeout):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(update, context):
+            chat_id = update.effective_chat.id
+            user_data = context.user_data.setdefault(chat_id, {})
+            last_activity = user_data.get('last_activity', time.time())
+
+            # Menghitung selisih waktu sejak aktivitas terakhir
+            elapsed_time = time.time() - last_activity
+
+            # Mengatur waktu aktivitas terakhir
+            user_data['last_activity'] = time.time()
+
+            result = await func(update, context)
+
+            # Logout jika tidak ada aktivitas dalam waktu yang ditentukan
+            if elapsed_time > timeout:
+                del context.user_data[chat_id]  # Hapus data pengguna dari user_data
+
+            return result
+        return wrapper
+    return decorator
+
+@auto_logout(timeout=60)
 async def login_data(update: Update, context: CallbackContext) -> None:
     # Cek apakah format perintah /login valid
     try:
@@ -56,7 +84,7 @@ async def login_data(update: Update, context: CallbackContext) -> None:
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Username atau password salah.")
 
-
+@auto_logout(timeout=60)
 async def read_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Periksa apakah pengguna memiliki akses admin
     if not context.user_data.get(update.effective_chat.id, {}).get('admin', False):
@@ -72,6 +100,7 @@ async def read_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message += f"ID: {row[0]},\nNama: {row[1]},\nWaktu Daftar: {row[2]},\nLatitude: {row[3]},\nLongitude: {row[4]},\nChat ID: {row[5]}\n\n"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
 
+@auto_logout(timeout=60)
 async def create_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Periksa apakah pengguna memiliki akses admin
     if not context.user_data.get(update.effective_chat.id, {}).get('admin', False):
@@ -86,6 +115,7 @@ async def create_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mydb.commit()
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Data berhasil ditambahkan!")
 
+@auto_logout(timeout=60)
 async def edit_data(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Periksa apakah pengguna memiliki hak akses
@@ -110,6 +140,7 @@ async def edit_data(update: Update, context: CallbackContext):
     except Exception as e:
         await context.bot.send_message(chat_id=chat_id, text=f"Terjadi kesalahan: {e}")
 
+@auto_logout(timeout=60)
 async def delete_data(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Periksa apakah pengguna memiliki hak akses

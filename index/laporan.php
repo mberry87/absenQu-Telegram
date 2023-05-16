@@ -66,52 +66,87 @@
         if (!empty($nama)) {
             $where .= "AND nama = '$nama' ";
         }
-    } else {
-        $where = "";
-    }
 
-    // Koneksi ke database
-    require_once('config.php');
+        // Koneksi ke database
+        require_once('config.php');
 
-    // Query untuk mengambil data absensi
-    $sql = "SELECT id, nama, jenis_absen, status, alasan, jam_absen FROM absen $where ORDER BY jam_absen DESC";
+        // Query untuk mengambil data absensi
+        $sql = "SELECT id, nama, jenis_absen, status, alasan, jam_absen FROM absen $where ORDER BY jam_absen DESC";
 
-    // Menjalankan query
-    $result = mysqli_query($conn, $sql);
+        // Menjalankan query
+        $result = mysqli_query($conn, $sql);
 
-    // Mengecek apakah query berhasil
-    if (!$result) {
-        die("Query gagal: " . mysqli_error($conn));
-    }
+        // Mengecek apakah query berhasil
+        if (!$result) {
+            die("Query gagal: " . mysqli_error($conn));
+        }
 
-    // Menampilkan tabel absensi
-    if (mysqli_num_rows($result) > 0) {
-        echo "<table border='1'>";
-        echo "<thead>";
-        echo "<tr>";
+        // Query untuk menghitung jumlah absen pagi, absen sore, sakit, izin, tidak absen pagi, dan tidak absen sore
+        $sql_jumlah_absen = "SELECT 
+                                SUM(CASE WHEN jenis_absen = 'absen pagi' THEN 1 ELSE 0 END) AS jumlah_absen_pagi,
+                                SUM(CASE WHEN jenis_absen = 'absen sore' THEN 1 ELSE 0 END) AS jumlah_absen_sore,
+                                SUM(CASE WHEN jenis_absen = 'sakit' THEN 1 ELSE 0 END) AS jumlah_sakit,
+                                SUM(CASE WHEN jenis_absen = 'izin' THEN 1                             ELSE 0 END) AS jumlah_izin,
+                            SUM(CASE WHEN jenis_absen != 'absen pagi' THEN 1 ELSE 0 END) AS jumlah_tidak_absen_pagi,
+                            SUM(CASE WHEN jenis_absen != 'absen sore' THEN 1 ELSE 0 END) AS jumlah_tidak_absen_sore
+                        FROM absen $where";
 
-        echo "<th>Nama</th>";
-        echo "<th>Jenis Absen</th>";
-        echo "<th>Status</th>";
-        echo "<th>Alasan</th>";
-        echo "<th>Jam Absen</th>";
-        echo "</tr>";
-        echo "</thead>";
-        echo "<tbody>";
-        while ($row = mysqli_fetch_assoc($result)) {
+        // Menjalankan query jumlah absen
+        $result_jumlah_absen = mysqli_query($conn, $sql_jumlah_absen);
+
+        // Mengecek apakah query jumlah absen berhasil
+        if ($result_jumlah_absen) {
+            $row_jumlah_absen = mysqli_fetch_assoc($result_jumlah_absen);
+            $jumlah_absen_pagi = $row_jumlah_absen['jumlah_absen_pagi'];
+            $jumlah_absen_sore = $row_jumlah_absen['jumlah_absen_sore'];
+            $jumlah_sakit = $row_jumlah_absen['jumlah_sakit'];
+            $jumlah_izin = $row_jumlah_absen['jumlah_izin'];
+            $jumlah_tidak_absen_pagi = $row_jumlah_absen['jumlah_tidak_absen_pagi'];
+            $jumlah_tidak_absen_sore = $row_jumlah_absen['jumlah_tidak_absen_sore'];
+
+            // Menampilkan informasi jumlah absen
+            echo "Jumlah Kehadiran: " . "<br>";
+            echo "Absen Pagi: " . $jumlah_absen_pagi . "<br>";
+            echo "Absen Sore: " . $jumlah_absen_sore . "<br>";
+            echo "Sakit: " . $jumlah_sakit . "<br>";
+            echo "Izin: " . $jumlah_izin . "<br>";
+            echo "Tidak Absen Pagi: " . $jumlah_tidak_absen_pagi . "<br>";
+            echo "Tidak Absen Sore: " . $jumlah_tidak_absen_sore . "<br><br>";
+        } else {
+            echo "Query jumlah absen gagal: " . mysqli_error($conn);
+        }
+
+        // Menampilkan tabel absensi
+        if (mysqli_num_rows($result) > 0) {
+            echo "<table border='1'>";
+            echo "<thead>";
             echo "<tr>";
 
-            echo "<td>" . $row['nama'] . "</td>";
-            echo "<td>" . $row['jenis_absen'] . "</td>";
-            echo "<td>" . $row['status'] . "</td>";
-            echo "<td>" . $row['alasan'] . "</td>";
-            echo "<td>" . $row['jam_absen'] . "</td>";
+            echo "<th>Nama</th>";
+            echo "<th>Jenis Absen</th>";
+            echo "<th>Status</th>";
+            echo "<th>Alasan</th>";
+            echo "<th>Jam Absen</th>";
             echo "</tr>";
+            echo "</thead>";
+            echo "<tbody>";
+            while ($row = mysqli_fetch_assoc($result)) {
+                echo "<tr>";
+
+                echo "<td>" . $row['nama'] . "</td>";
+                echo "<td>" . $row['jenis_absen'] . "</td>";
+                echo "<td>" . $row['status'] . "</td>";
+                echo "<td>" . $row['alasan'] . "</td>";
+                echo "<td>" . $row['jam_absen'] . "</td>";
+                echo "</tr>";
+            }
+            echo "</tbody>";
+            echo "</table>";
+        } else {
+            echo "Tidak ada data absensi.";
         }
-        echo "</tbody>";
-        echo "</table>";
-    } else {
-        echo "Tidak ada data absensi.";
+
+        mysqli_close($conn);
     }
     ?>
 
