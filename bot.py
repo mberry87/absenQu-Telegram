@@ -5,8 +5,8 @@ import datetime
 import telegram
 import mysql.connector
 import geopy.distance
-
-
+import time
+from functools import wraps
 
 # Buat koneksi ke database
 mydb = mysql.connector.connect(
@@ -15,6 +15,14 @@ mydb = mysql.connector.connect(
     password="",
     database="absenqu"
 )
+
+# Memeriksa apakah koneksi terputus dan mencoba menghubungkan kembali
+if mydb.is_connected() == False:
+    print("KOneksi terputus. Mencoba menghubungi kembali...")
+    mydb.reconnect(attempts=1, delay=0)
+    if mydb.is_connected() == True:
+        print("Koneksi berhasil tersambung kembali.")
+
 
 # Buat cursor untuk mengeksekusi query SQL
 mycursor = mydb.cursor()
@@ -26,6 +34,32 @@ logging.basicConfig(
 
 # ========= Funsi CRUD ========= #
 
+# Fungsi decorator untuk mengatur waktu logout jika tidak ada aktivitas
+def auto_logout(timeout):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(update, context):
+            chat_id = update.effective_chat.id
+            user_data = context.user_data.setdefault(chat_id, {})
+            last_activity = user_data.get('last_activity', time.time())
+
+            # Menghitung selisih waktu sejak aktivitas terakhir
+            elapsed_time = time.time() - last_activity
+
+            # Mengatur waktu aktivitas terakhir
+            user_data['last_activity'] = time.time()
+
+            result = await func(update, context)
+
+            # Logout jika tidak ada aktivitas dalam waktu yang ditentukan
+            if elapsed_time > timeout:
+                del context.user_data[chat_id]  # Hapus data pengguna dari user_data
+
+            return result
+        return wrapper
+    return decorator
+
+@auto_logout(timeout=60)
 async def login_data(update: Update, context: CallbackContext) -> None:
     # Cek apakah format perintah /login valid
     try:
@@ -50,7 +84,7 @@ async def login_data(update: Update, context: CallbackContext) -> None:
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Username atau password salah.")
 
-
+@auto_logout(timeout=60)
 async def read_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Periksa apakah pengguna memiliki akses admin
     if not context.user_data.get(update.effective_chat.id, {}).get('admin', False):
@@ -66,6 +100,7 @@ async def read_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message += f"ID: {row[0]},\nNama: {row[1]},\nWaktu Daftar: {row[2]},\nLatitude: {row[3]},\nLongitude: {row[4]},\nChat ID: {row[5]}\n\n"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message)
 
+@auto_logout(timeout=60)
 async def create_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Periksa apakah pengguna memiliki akses admin
     if not context.user_data.get(update.effective_chat.id, {}).get('admin', False):
@@ -80,6 +115,7 @@ async def create_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mydb.commit()
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Data berhasil ditambahkan!")
 
+@auto_logout(timeout=60)
 async def edit_data(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Periksa apakah pengguna memiliki hak akses
@@ -104,6 +140,7 @@ async def edit_data(update: Update, context: CallbackContext):
     except Exception as e:
         await context.bot.send_message(chat_id=chat_id, text=f"Terjadi kesalahan: {e}")
 
+@auto_logout(timeout=60)
 async def delete_data(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Periksa apakah pengguna memiliki hak akses
@@ -171,7 +208,7 @@ async def location(update: Update, context: CallbackContext, alasan = None):
     location = update.message.location
     latitude = location.latitude
     longitude = location.longitude
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Lokasi anda berada\n👨 Nama : {user_id}\n📌Latitude : {latitude}\n📌 Longitude : {longitude}")
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Lokasi anda berada\n👨 Nama : {user_id}\n📌 Latitude : {latitude}\n📌 Longitude : {longitude}")
     # await context.bot.send_location(chat_id=update.effective_chat.id, latitude=latitude, longitude=longitude)
 
     try:
@@ -205,17 +242,7 @@ async def location(update: Update, context: CallbackContext, alasan = None):
         if distance > 1:
             await context.bot.send_message(chat_id=update.effective_chat.id, text="Anda tidak berada di dalam radius absen.\nSilahkan anda absen kembali !")
             return
-
-        # # Memeriksa apakah pengguna telah melakukan absen pada hari yang sama sebelumnya
-        # sql = "SELECT COUNT(*) FROM absen WHERE nama=%s AND DATE(jam_absen) = CURDATE()"
-        # val = (user_name,)
-        # mycursor.execute(sql, val)
-        # result = mycursor.fetchone()
-
-        # if result[0] > 0:
-        #     await context.bot.send_message(chat_id=update.effective_chat.id, text="Anda sudah melakukan absen pada hari ini.")
-        #     return
-
+        
         if now >= '05:00:00' and now <= '08:00:00':
             jenis_absen = 'Absen Pagi'
             status = 'Tepat waktu'
@@ -227,6 +254,16 @@ async def location(update: Update, context: CallbackContext, alasan = None):
             status = 'Tepat waktu'
         else:
             await context.bot.send_message(chat_id=update.effective_chat.id, text="Maaf, saat ini tidak bisa melakukan absen.")
+            return
+
+        # Memeriksa apakah pengguna telah melakukan absen pada hari yang sama sebelumnya
+        sql = "SELECT COUNT(*) FROM absen WHERE nama=%s AND DATE(jam_absen) = CURDATE() AND jenis_absen=%s"
+        val = (user_name,jenis_absen)
+        mycursor.execute(sql, val)
+        result = mycursor.fetchone()
+
+        if result[0] > 0:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Anda sudah melakukan absen {jenis_absen}")
             return
 
         waktu_absen = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -275,6 +312,12 @@ async def izin (update : Update, context : ContextTypes.DEFAULT_TYPE):
     waktu_absen = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     jenis_absen = 'Izin'
     status = 'Tidak hadir'
+
+    # Memasukkan data absen ke dalam tabel absen
+    sql = "INSERT INTO absen (nama,jenis_absen, jam_absen, status, alasan) VALUES (%s, %s, %s, %s, %s)"
+    val = (user_name, jenis_absen, waktu_absen, status, alasan)
+    mycursor.execute(sql, val)
+    mydb.commit()
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima kasih, izin Anda sudah tercatat.\n📖 Aksi : {jenis_absen}\n✅ Nama : {user_name}\n🕖 Waktu absen : {waktu_absen}\n✋ Status : {status}\n📝 Alasan : {alasan}")
     
