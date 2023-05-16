@@ -1,4 +1,15 @@
 <?php
+session_start();
+
+// Cek apakah user sudah login
+if (!isset($_SESSION['username'])) {
+    // Jika belum, redirect ke halaman login
+    header('Location: login.php');
+    exit();
+}
+
+// Ambil username dari session
+$username = $_SESSION['username'];
 
 // Koneksi ke database
 require_once('config.php');
