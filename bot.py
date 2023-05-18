@@ -167,6 +167,9 @@ async def delete_data(update: Update, context: CallbackContext):
             
 # =============================== #
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Selamat Datang di Apliaski SiabsenQU")
+
 async def daftar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         chat_id = update.message.from_user.id
@@ -194,14 +197,26 @@ async def daftar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except telegram.error.Conflict:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Maaf, terjadi kesalahan saat melakukan pendaftaran. Silakan coba lagi nanti.")
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Selamat Datang di Apliaski AbsenQU")
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Selamat Datang di Apliaski SiabsenQU")
 
 async def absen(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Meminta akses lokasi
-    await context.bot.send_message(chat_id=update.effective_chat.id, text="Silahkan share lokasi anda 📍 !")
+        chat_id = update.message.from_user.id
+        now = datetime.datetime.now().strftime('%H:%M:%S')
+        user_name = update.message.from_user.first_name
 
+        # memeriksa apakah pengguna sudah terdaftar
+        sql = "SELECT COUNT(*) FROM pengguna WHERE nama=%s"
+        val = (user_name,)
+        mycursor.execute(sql, val)
+        result = mycursor.fetchone()
+
+        if result[0] == 0:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="Data anda belum terdaftar. Ketik /daftar untuk mendaftar !")
+            return
+
+        # Meminta akses lokasi
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Silahkan share lokasi anda 📍 !")
 
 async def location(update: Update, context: CallbackContext, alasan = None):
     user_id = update.message.from_user.first_name
@@ -216,7 +231,7 @@ async def location(update: Update, context: CallbackContext, alasan = None):
         now = datetime.datetime.now().strftime('%H:%M:%S')
         user_name = update.message.from_user.first_name
 
-        # memeriksa pendaftaran
+        # memeriksa apakah pengguna sudah terdaftar
         sql = "SELECT COUNT(*) FROM pengguna WHERE nama=%s"
         val = (user_name,)
         mycursor.execute(sql, val)
@@ -236,6 +251,10 @@ async def location(update: Update, context: CallbackContext, alasan = None):
         user_longitude = result[1]
         user_location = (user_latitude, user_longitude)
         current_location = (latitude, longitude)
+
+        if user_latitude is None or user_longitude is None:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="Lokasi Anda belum terdaftar, hubungi admin!")
+            return
 
         distance = geopy.distance.distance(user_location, current_location).km
 
@@ -263,7 +282,7 @@ async def location(update: Update, context: CallbackContext, alasan = None):
         result = mycursor.fetchone()
 
         if result[0] > 0:
-            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Anda sudah melakukan absen {jenis_absen}")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Anda sudah melakukan absen {jenis_absen} hari ini.")
             return
 
         waktu_absen = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -287,44 +306,85 @@ async def location(update: Update, context: CallbackContext, alasan = None):
 
 
 async def sakit (update : Update, context : ContextTypes.DEFAULT_TYPE, alasan=None):
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
+    # await context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
 
     user_name = update.message.from_user.first_name
     waktu_absen = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     jenis_absen = 'Sakit'
     status = 'Tidak hadir'
 
+    # memeriksa apakah pengguna sudah terdaftar
+    sql = "SELECT COUNT(*) FROM pengguna WHERE nama=%s"
+    val = (user_name,)
+    mycursor.execute(sql, val)
+    result = mycursor.fetchone()
+
+    if result[0] == 0:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Data anda belum terdaftar. Ketik /daftar untuk mendaftar !")
+        return
+
     # Memasukkan data absen ke dalam tabel absen
     sql = "INSERT INTO absen (nama,jenis_absen, jam_absen, status, alasan) VALUES (%s, %s, %s, %s, %s)"
     val = (user_name, jenis_absen, waktu_absen, status, alasan)
     mycursor.execute(sql, val)
     mydb.commit()
 
+    # Memeriksa apakah pengguna telah melakukan absen pada hari yang sama sebelumnya
+    sql = "SELECT COUNT(*) FROM absen WHERE nama=%s AND DATE(jam_absen) = CURDATE() AND jenis_absen=%s"
+    val = (user_name,jenis_absen)
+    mycursor.execute(sql, val)
+    result = mycursor.fetchone()
+
+    if result[0] > 0:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Anda sudah melakukan absen {jenis_absen} untuk hari ini.")
+        return
+
     await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima Kasih, Lekas sembuh.\n📖 Aksi : {jenis_absen}\n✅ Nama : {user_name}\n🕖 Waktu absen : {waktu_absen}\n✋ Status : {status}")
 
 async def izin (update : Update, context : ContextTypes.DEFAULT_TYPE):
-    if len(context.args) == 0:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Mohon maaf, sertakan alasan ! Ketik : /izin {alasan} tanpa kurung")
-        return
-    
+
     alasan = " ".join(context.args)
     user_name = update.message.from_user.first_name
     waktu_absen = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     jenis_absen = 'Izin'
     status = 'Tidak hadir'
 
+    # memeriksa apakah pengguna sudah terdaftar
+    sql = "SELECT COUNT(*) FROM pengguna WHERE nama=%s"
+    val = (user_name,)
+    mycursor.execute(sql, val)
+    result = mycursor.fetchone()
+
+    if result[0] == 0:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Data anda belum terdaftar. Ketik /daftar untuk mendaftar !")
+        return
+    
+    if len(context.args) == 0:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Mohon maaf, sertakan alasan ! Ketik : /izin {alasan} tanpa kurung")
+        return
+
     # Memasukkan data absen ke dalam tabel absen
     sql = "INSERT INTO absen (nama,jenis_absen, jam_absen, status, alasan) VALUES (%s, %s, %s, %s, %s)"
     val = (user_name, jenis_absen, waktu_absen, status, alasan)
     mycursor.execute(sql, val)
     mydb.commit()
 
+    # Memeriksa apakah pengguna telah melakukan absen pada hari yang sama sebelumnya
+    sql = "SELECT COUNT(*) FROM absen WHERE nama=%s AND DATE(jam_absen) = CURDATE() AND jenis_absen=%s"
+    val = (user_name,jenis_absen)
+    mycursor.execute(sql, val)
+    result = mycursor.fetchone()
+
+    if result[0] > 0:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Anda sudah melakukan absen {jenis_absen} hari ini.")
+        return
+
     await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima kasih, izin Anda sudah tercatat.\n📖 Aksi : {jenis_absen}\n✅ Nama : {user_name}\n🕖 Waktu absen : {waktu_absen}\n✋ Status : {status}\n📝 Alasan : {alasan}")
     
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(
-        '6192400416:AAHgSAkjydqDMh5fkqf_Xfd9j2CfRpV0Uts').build()
+        '6160156503:AAF3D2SxB31ibEKsp67dIJZjcfp118qXHxo').build()
 
     start_handler = CommandHandler('start', start)
     absen_handler = CommandHandler('absen', absen)
