@@ -6,9 +6,9 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
             <div class="navbar-nav">
-                <a class="nav-link" href="home.php">Home</a>
-                <a class="nav-link" href="absen.php">Absen</a>
-                <a class="nav-link" href="user.php">User</a>
+                <a class="nav-link <?php echo $active == 'home' ? 'active' : ''; ?>" href="home.php">Home</a>
+                <a class=" nav-link <?php echo $active == 'absen' ? 'active' : ''; ?>" href="absen.php">Absen</a>
+                <a class="nav-link <?php echo $active == 'user' ? 'active' : ''; ?>" href="user.php">User</a>
                 <a class="nav-link" href="logout.php">Logout</a>
             </div>
         </div>

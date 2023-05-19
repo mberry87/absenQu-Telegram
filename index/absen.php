@@ -53,6 +53,7 @@ $result = mysqli_query($conn, $query)
 <body>
     <div class="container">
         <?php
+        $active = 'absen';
         include 'navbar.php'
         ?>
     </div>
