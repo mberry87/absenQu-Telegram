@@ -306,7 +306,6 @@ async def location(update: Update, context: CallbackContext, alasan = None):
 
 
 async def sakit (update : Update, context : ContextTypes.DEFAULT_TYPE, alasan=None):
-    # await context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
 
     user_name = update.message.from_user.first_name
     waktu_absen = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -322,16 +321,10 @@ async def sakit (update : Update, context : ContextTypes.DEFAULT_TYPE, alasan=No
     if result[0] == 0:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Data anda belum terdaftar. Ketik /daftar untuk mendaftar !")
         return
-
-    # Memasukkan data absen ke dalam tabel absen
-    sql = "INSERT INTO absen (nama,jenis_absen, jam_absen, status, alasan) VALUES (%s, %s, %s, %s, %s)"
-    val = (user_name, jenis_absen, waktu_absen, status, alasan)
-    mycursor.execute(sql, val)
-    mydb.commit()
-
+    
     # Memeriksa apakah pengguna telah melakukan absen pada hari yang sama sebelumnya
-    sql = "SELECT COUNT(*) FROM absen WHERE nama=%s AND DATE(jam_absen) = CURDATE() AND jenis_absen=%s"
-    val = (user_name,jenis_absen)
+    sql = "SELECT COUNT(*) FROM absen WHERE nama = %s AND DATE(jam_absen) = CURDATE() AND jenis_absen = %s"
+    val = (user_name, jenis_absen)
     mycursor.execute(sql, val)
     result = mycursor.fetchone()
 
@@ -339,16 +332,20 @@ async def sakit (update : Update, context : ContextTypes.DEFAULT_TYPE, alasan=No
         await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Anda sudah melakukan absen {jenis_absen} untuk hari ini.")
         return
 
+    # Memasukkan data absen ke dalam tabel absen
+    sql = "INSERT INTO absen (nama,jenis_absen, jam_absen, status, alasan) VALUES (%s, %s, %s, %s, %s)"
+    val = (user_name, jenis_absen, waktu_absen, status, alasan)
+    mycursor.execute(sql, val)
+    mydb.commit()
+
     await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima Kasih, Lekas sembuh.\n📖 Aksi : {jenis_absen}\n✅ Nama : {user_name}\n🕖 Waktu absen : {waktu_absen}\n✋ Status : {status}")
 
 async def izin (update : Update, context : ContextTypes.DEFAULT_TYPE):
 
-    alasan = " ".join(context.args)
+    # alasan = " ".join(context.args)
     user_name = update.message.from_user.first_name
-    waktu_absen = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     jenis_absen = 'Izin'
-    status = 'Tidak hadir'
-
+    
     # memeriksa apakah pengguna sudah terdaftar
     sql = "SELECT COUNT(*) FROM pengguna WHERE nama=%s"
     val = (user_name,)
@@ -359,27 +356,43 @@ async def izin (update : Update, context : ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Data anda belum terdaftar. Ketik /daftar untuk mendaftar !")
         return
     
-    if len(context.args) == 0:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Mohon maaf, sertakan alasan ! Ketik : /izin {alasan} tanpa kurung")
-        return
-
-    # Memasukkan data absen ke dalam tabel absen
-    sql = "INSERT INTO absen (nama,jenis_absen, jam_absen, status, alasan) VALUES (%s, %s, %s, %s, %s)"
-    val = (user_name, jenis_absen, waktu_absen, status, alasan)
-    mycursor.execute(sql, val)
-    mydb.commit()
-
     # Memeriksa apakah pengguna telah melakukan absen pada hari yang sama sebelumnya
-    sql = "SELECT COUNT(*) FROM absen WHERE nama=%s AND DATE(jam_absen) = CURDATE() AND jenis_absen=%s"
-    val = (user_name,jenis_absen)
+    sql = "SELECT COUNT(*) FROM absen WHERE nama = %s AND DATE(jam_absen) = CURDATE() AND jenis_absen = %s"
+    val = (user_name, jenis_absen)
     mycursor.execute(sql, val)
     result = mycursor.fetchone()
 
     if result[0] > 0:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Anda sudah melakukan absen {jenis_absen} hari ini.")
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Anda sudah melakukan absen {jenis_absen} untuk hari ini.")
         return
+    
+    await context.bot.send_message(chat_id=update.effective_chat.id, text='Masukkan alasan anda ! ')
+    
+async def alasan(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_name = update.message.from_user.first_name
+    input_alasan = update.message.text
+    waktu_absen = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    jenis_absen = 'Izin'
+    status = 'Tidak hadir'
+    
+    # Memeriksa apakah pengguna telah melakukan absen pada hari yang sama sebelumnya
+    sql = "SELECT COUNT(*) FROM absen WHERE nama = %s AND DATE(jam_absen) = CURDATE() AND jenis_absen = %s"
+    val = (user_name, jenis_absen)
+    mycursor.execute(sql, val)
+    result = mycursor.fetchone()
 
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima kasih, izin Anda sudah tercatat.\n📖 Aksi : {jenis_absen}\n✅ Nama : {user_name}\n🕖 Waktu absen : {waktu_absen}\n✋ Status : {status}\n📝 Alasan : {alasan}")
+    if result[0] > 0:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Anda sudah melakukan absen {jenis_absen} untuk hari ini.")
+        return
+    
+    # Memasukkan data absen ke dalam tabel absen
+    sql = "INSERT INTO absen (nama,jenis_absen, jam_absen, status, alasan) VALUES (%s, %s, %s, %s, %s)"
+    val = (user_name, jenis_absen, waktu_absen, status, input_alasan)
+    mycursor.execute(sql, val)
+    mydb.commit()
+
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Terima kasih, izin Anda sudah tercatat.\n📖 Aksi : {jenis_absen}\n✅ Nama : {user_name}\n🕖 Waktu absen : {waktu_absen}\n✋ Status : {status}\n📝 Alasan : {input_alasan}")
     
 
 if __name__ == '__main__':
@@ -392,6 +405,7 @@ if __name__ == '__main__':
     location_handler = MessageHandler(filters.LOCATION, location)
     sakit_handler = CommandHandler('sakit', sakit)
     izin_handler = CommandHandler('izin', izin)
+    alasan_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), alasan)
 
     application.add_handler(start_handler)
     application.add_handler(absen_handler)
@@ -399,6 +413,7 @@ if __name__ == '__main__':
     application.add_handler(location_handler)
     application.add_handler(sakit_handler)
     application.add_handler(izin_handler)
+    application.add_handler(alasan_handler)
 
 
     # Command CRUD
