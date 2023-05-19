@@ -29,7 +29,8 @@ $username = $_SESSION['username'];
 <body>
     <div class="container">
         <?php
-        include 'navbar.php'
+        $active = 'home';
+        include 'navbar.php';
         ?>
     </div>
 

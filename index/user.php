@@ -52,6 +52,7 @@ $result = mysqli_query($conn, $query)
 <body>
     <div class="container">
         <?php
+        $active = 'user';
         include 'navbar.php'
         ?>
     </div>
