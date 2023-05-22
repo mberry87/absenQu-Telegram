@@ -57,7 +57,7 @@ $result = mysqli_query($conn, $query)
         ?>
     </div>
     <div class="container mt-4">
-        <h5>Tabel Usert</h5>
+        <h5>Tabel User</h5>
         <table class="table table-responsive table-striped">
             <thead>
                 <tr>
