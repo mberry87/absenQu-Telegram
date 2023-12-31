@@ -31,3 +31,15 @@ Ini adalah proyek absensi menggunakan bot Telegram yang dibangun dengan Python. 
 1. **Kloning Repositori:**
    git clone https://github.com/nama-akun/absensi-bot-telegram.git
    cd absensi-bot-telegram
+
+2.  **Instal Dependensi:**
+   pip install -r requirements.txt
+   
+3. **Menyiapkan Konfigurasi:**
+   Buat file .env dan atur variabel lingkungan yang diperlukan seperti token bot Telegram, dll.
+   
+4. **Menjalankan Bot:**
+python main.py
+
+### Kontribusi
+Jika Anda ingin berkontribusi pada proyek ini, silakan buka Issue baru atau kirim Pull Request.
